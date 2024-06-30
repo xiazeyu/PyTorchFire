@@ -118,4 +118,4 @@ class InitialGenerator:
 
 
 i_generator = InitialGenerator(device=torch.device('cuda'))
-i_generator.predict(h5py.File('dataset_v4.hdf5', 'r'))
+i_generator.predict(h5py.File('sim_dataset_v4.hdf5', 'r'))

@@ -18,7 +18,7 @@ from WildTorchModel import WildfireModel
 class Trainer:
     def __init__(self, device=torch.device('cpu'), dtype=torch.float32):
         self.model = None
-        self.lr = 0.05
+        self.lr = 0.005
         self.optimizer = None
         self.max_epoch = 10
         self.max_steps = 200  # [0, 199]
@@ -92,13 +92,14 @@ class Trainer:
 
         return bce_loss + mse_loss, bce_loss, mse_loss
 
-    def train_exp(self, obs_id: int, lr: float = 0.1, max_epoch: int = 10, loss_type: int = 0, p_h: float = 0.5,
-                  run_name: str = '', steps_update_interval: int = 10):
+    def train_exp(self, fire_name: str, lr: float = 0.1, max_epoch: int = 10, loss_type: int = 0, p_h: float = 0.5,
+                  p_continue_burn: float = 0.3,
+                  run_name: str = ''):
         log_dir = os.path.join('/root/tf-logs', run_name)
         writer = SummaryWriter(log_dir=log_dir)
 
-        f_ds = h5py.File(f'sim_dataset_v4.hdf5', 'r')
-        fg_ds = f_ds[str(obs_id)]
+        f_ds = h5py.File(f'real_dataset_v4.hdf5', 'r')
+        fg_ds = f_ds[fire_name]
 
         self.model = WildfireModel({
             'wind_V': torch.tensor(fg_ds['wind_V'][0][:], dtype=self.dtype, device=self.device),
@@ -113,24 +114,25 @@ class Trainer:
             'a': nn.Parameter(torch.tensor(0.0, device=self.device)),
             'c_1': nn.Parameter(torch.tensor(0.0, device=self.device)),
             'c_2': nn.Parameter(torch.tensor(0.0, device=self.device)),
-            'p_continue_burn': nn.Parameter(torch.tensor(fg_ds.attrs['p_continue_burn'], device=self.device),
+            'p_continue_burn': nn.Parameter(torch.tensor(p_continue_burn, device=self.device),
                                             requires_grad=False),
             'p_h': nn.Parameter(torch.tensor(p_h, device=self.device)),  # 0.2 <= p_h <= 1
         })
 
         self.lr = lr
         self.max_epoch = max_epoch
-        self.steps_update_interval = steps_update_interval
+        self.steps_update_interval = self.max_steps // fg_ds.attrs['day_count']
         self.reset()
 
         postfix = {}
-        for epoch in range(self.max_epoch):
+        for epoch in range(self.max_epoch): # [0, max_epoch - 1]
             postfix['epoch'] = f'{epoch + 1}/{self.max_epoch}'
             self.model.reset()
             max_iteration = self.max_steps // self.steps_update_interval
 
             accumulators = []
             accumulator_masks = []
+            targets = []
 
             affected_cell_count_pred = []
             affected_cell_count_targ = []
@@ -145,17 +147,21 @@ class Trainer:
 
                     for step in range(batch_max_step):
                         postfix['step'] = f'{step + 1}/{batch_max_step}'
+
                         # update wind
-                        self.model.wind_towards_direction = torch.tensor(fg_ds['wind_towards_direction'][step][:],
-                                                                         dtype=self.dtype, device=self.device)
-                        self.model.wind_V = torch.tensor(fg_ds['wind_V'][step][:], dtype=self.dtype, device=self.device)
+                        self.model.wind_towards_direction = torch.tensor(
+                            fg_ds['wind_towards_direction'][step // self.steps_update_interval][:],
+                            dtype=self.dtype, device=self.device)
+                        self.model.wind_V = torch.tensor(fg_ds['wind_V'][step // self.steps_update_interval][:],
+                                                         dtype=self.dtype,
+                                                         device=self.device)
 
                         # Perform a forward pass
                         self.model.compute(attach=self.check_if_attach(batch_max_step, step))
                         progress_bar.set_postfix(postfix)
 
                     accumulator_output = self.model.accumulator
-                    target = torch.tensor(fg_ds['observation'][batch_max_step - 1], dtype=torch.bool,
+                    target = torch.tensor(fg_ds['target'][iteration], dtype=torch.bool,
                                           device=self.device)
                     loss = self.loss_fn(accumulator_output, target * 1.0)
                     binary_accumulator_output = accumulator_output > 0
@@ -199,6 +205,7 @@ class Trainer:
 
                     accumulators.append(self.model.accumulator.detach().cpu())
                     accumulator_masks.append(self.model.accumulator_mask.detach().cpu())
+                    targets.append(target.detach().cpu())
 
                     global_step = epoch * max_iteration + iteration
                     writer.add_scalar('Loss/total', loss[0].detach().cpu().item(), global_step)
@@ -255,25 +262,28 @@ class Trainer:
                 epoch_ds.attrs['mse_loss'] = loss[2].detach().cpu().numpy()
 
                 epoch_ds.create_dataset('accumulator', data=torch.stack(accumulators).cpu().numpy(), compression='gzip')
+                epoch_ds.create_dataset('binary_accumulator', data=(torch.stack(accumulators) > 0).cpu().numpy(),
+                                        compression='gzip')
                 epoch_ds.create_dataset('accumulator_mask', data=torch.stack(accumulator_masks).cpu().numpy(),
                                         compression='gzip')
-                epoch_ds.create_dataset('target', data=target.cpu().numpy())
+                epoch_ds.create_dataset('target', data=torch.stack(targets).cpu().numpy(), compression='gzip')
 
         writer.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run training experiment.')
-    parser.add_argument('--obs_id', type=int, required=False, default=0, help='Observation ID')
-    parser.add_argument('--lr', type=float, required=False, default=0.1, help='Learning rate')
+    parser.add_argument('--fire_name', type=str, required=False, default='Bear_2020', help='Fire name')
+    parser.add_argument('--lr', type=float, required=False, default=0.005, help='Learning rate')
     parser.add_argument('--p_h', type=float, required=False, default=0.8, help='Probability of something')
+    parser.add_argument('--p_continue_burn', type=float, required=False, default=0.3, help='Probability of something')
     parser.add_argument('--max_epoch', type=int, required=False, default=10, help='Maximum number of epochs')
     parser.add_argument('--loss_type', type=int, required=False, default=0, help='Loss type')
     parser.add_argument('--device', type=str, required=False, default='cuda:0', help='Device')
     parser.add_argument('--run_name', type=str, required=False, default='default', help='Run name')
-    parser.add_argument('--steps_update_interval', type=int, required=False, default=10, help='Steps update interval')
 
     args = parser.parse_args()
     trainer = Trainer(device=torch.device(args.device), dtype=torch.float32)
-    trainer.train_exp(obs_id=args.obs_id, lr=args.lr, max_epoch=args.max_epoch, loss_type=args.loss_type, p_h=args.p_h,
-                      run_name=args.run_name, steps_update_interval=args.steps_update_interval)
+    trainer.train_exp(fire_name=args.fire_name, lr=args.lr, max_epoch=args.max_epoch, loss_type=args.loss_type,
+                      p_h=args.p_h, p_continue_burn=args.p_continue_burn,
+                      run_name=args.run_name)
