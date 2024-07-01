@@ -278,6 +278,7 @@ if __name__ == "__main__":
     parser.add_argument('--p_h', type=float, required=False, default=0.8, help='Probability of something')
     parser.add_argument('--p_continue_burn', type=float, required=False, default=0.3, help='Probability of something')
     parser.add_argument('--max_epoch', type=int, required=False, default=10, help='Maximum number of epochs')
+    parser.add_argument('--steps_update_interval', type=int, required=False, default=30, help='Steps update interval')
     parser.add_argument('--loss_type', type=int, required=False, default=0, help='Loss type')
     parser.add_argument('--device', type=str, required=False, default='cuda:0', help='Device')
     parser.add_argument('--run_name', type=str, required=False, default='default', help='Run name')
@@ -286,4 +287,5 @@ if __name__ == "__main__":
     trainer = RealFireTrainer(device=torch.device(args.device), dtype=torch.float32)
     trainer.train_exp(fire_name=args.fire_name, lr=args.lr, max_epoch=args.max_epoch, loss_type=args.loss_type,
                       p_h=args.p_h, p_continue_burn=args.p_continue_burn,
+                      steps_update_interval=args.steps_update_interval,
                       run_name=args.run_name)
