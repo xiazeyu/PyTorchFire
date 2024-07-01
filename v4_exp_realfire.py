@@ -1,6 +1,5 @@
 import argparse
 import os
-from functools import cache
 
 import h5py
 import numpy as np
@@ -12,88 +11,92 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from WildTorchModel import WildfireModel
+from model import WildfireModel
+from trainer import Trainer
 
 
-class Trainer:
+class RealFireTrainer(Trainer):
+
     def __init__(self, device=torch.device('cpu'), dtype=torch.float32):
-        self.model = None
-        self.lr = 0.005
-        self.optimizer = None
-        self.max_epoch = 10
-        self.max_steps = 200  # [0, 199]
-        self.steps_update_interval = 10
+        super().__init__(device=device, dtype=dtype)
 
-        self.update_steps_first_k = 3
-        self.update_steps_last_k = 5
-        self.update_steps_in_between = 4
+    @torch.inference_mode()
+    def probe_max_steps(self, fire_name: str, p_continue_burn: float = 0.3, p_h: float = 0.5):
+        # Just for setting up the baseline. Not working well to directly predict the max steps.
 
-        self.device = device
-        self.dtype = dtype
+        def get_true_boundaries(tensor):
+            if not tensor.any():
+                return None  # No True values in the tensor
 
-    def reset(self):
-        self.model.reset()
-        # self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr)
-        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
+            true_indices = tensor.nonzero(as_tuple=True)
 
-    @staticmethod
-    @cache
-    def steps_to_attach(max_steps: int, update_steps_first_k: int, update_steps_last_k: int,
-                        update_steps_in_between: int) -> list[int]:
-        if max_steps <= update_steps_first_k + update_steps_last_k + update_steps_in_between:
-            return sorted(range(max_steps))
-        update_steps = set()
+            start_indices = [indices.min().item() for indices in true_indices]
+            end_indices = [indices.max().item() for indices in true_indices]
 
-        update_steps.update(range(update_steps_first_k))
-        update_steps.update(range(max_steps - update_steps_last_k, max_steps))
+            return start_indices, end_indices
 
-        start = update_steps_first_k
-        end = max_steps - update_steps_last_k
-        steps_in_between = end - start
-        interval = steps_in_between // (update_steps_in_between + 1)
-        for i in range(1, update_steps_in_between + 1):
-            update_steps.add(start + i * interval)
+        def is_boundary_contained(tensor1, tensor2):
+            boundaries1 = get_true_boundaries(tensor1)
+            boundaries2 = get_true_boundaries(tensor2)
 
-        return sorted(update_steps)
+            if boundaries1 is None:
+                return True  # tensor1 has no True values, so it's trivially contained
 
-    def check_if_attach(self, max_steps: int, current_step: int) -> bool:
-        return current_step in Trainer.steps_to_attach(max_steps, self.update_steps_first_k, self.update_steps_last_k,
-                                                       self.update_steps_in_between)
+            if boundaries2 is None:
+                return False  # tensor2 has no True values, so tensor1 can't be contained
 
-    @staticmethod
-    def loss_fn(prediction: torch.Tensor, target: torch.Tensor):
+            start1, end1 = boundaries1
+            start2, end2 = boundaries2
 
-        non_zero_indices = torch.nonzero(prediction + target)
-        min_row, min_col = non_zero_indices.min(dim=0)[0]
-        max_row, max_col = non_zero_indices.max(dim=0)[0]
-        prediction = prediction[min_row:max_row + 1, min_col:max_col + 1]
-        target = target[min_row:max_row + 1, min_col:max_col + 1]
+            for s1, e1, s2, e2 in zip(start1, end1, start2, end2):
+                if not (s2 <= s1 <= e2 and s2 <= e1 <= e2):
+                    return False
 
-        bce_loss_fn = nn.BCEWithLogitsLoss()
-        bce_loss = bce_loss_fn(prediction, target)
+            return True
 
-        window_size = 4
-        stride = window_size
+        f_ds = h5py.File(f'real_dataset_v4.hdf5', 'r')
+        fg_ds = f_ds[fire_name]
+        fg_shape = fg_ds['canopy'][:].shape
+        self.model = WildfireModel({
+            'wind_V': torch.zeros(fg_shape, dtype=self.dtype, device=self.device),
+            'wind_towards_direction': torch.zeros(fg_shape, dtype=self.dtype,
+                                                  device=self.device),
+            # starting from East and going counterclockwise in degrees
+            'slope': torch.zeros(fg_shape, dtype=self.dtype, device=self.device),  # degrees
+            'canopy': torch.zeros(fg_shape, dtype=self.dtype, device=self.device),  # %
+            'density': torch.zeros(fg_shape, dtype=self.dtype, device=self.device),  # kg m^{-3} * 100
+            'initial_fire': torch.tensor(fg_ds['initial_fire'][:], dtype=torch.bool, device=self.device)
+        }, {
+            'a': nn.Parameter(torch.tensor(0.0, device=self.device)),
+            'c_1': nn.Parameter(torch.tensor(0.0, device=self.device)),
+            'c_2': nn.Parameter(torch.tensor(0.0, device=self.device)),
+            'p_continue_burn': nn.Parameter(torch.tensor(p_continue_burn, device=self.device)),
+            'p_h': nn.Parameter(torch.tensor(p_h, device=self.device)),  # 0.2 <= p_h <= 1
+        })
 
-        prediction = repeat(prediction, 'h w -> 1 1 h w')
-        target = repeat(target, 'h w -> 1 1 h w')
+        final_result = torch.tensor(fg_ds['target'][-1], dtype=self.dtype, device=self.device)
 
-        conv = nn.Conv2d(1, 1, kernel_size=window_size, stride=stride, bias=False, device=prediction.device)
-        conv.weight.data.fill_(1.0 / (window_size * window_size))
+        self.reset()
 
-        for param in conv.parameters():
-            param.requires_grad = False
+        counter = 0
+        postfix = {}
 
-        prediction_avg = conv(prediction)
-        target_avg = conv(target)
+        with tqdm() as progress_bar:
+            while not is_boundary_contained(final_result, self.model.fire_state[0] | self.model.fire_state[1]):
+                counter += 1
+                self.model.compute(attach=False)
+                if self.model.fire_state[0].sum() == 0:
+                    print('No more burning cells')
+                    break
+                postfix['step'] = f'{counter}'
+                postfix['burning'] = f'{self.model.fire_state[0].sum().item()}'
+                postfix['burned'] = f'{self.model.fire_state[1].sum().item()}'
+                progress_bar.set_postfix(postfix)
 
-        mse_loss_fn = nn.MSELoss()
-        mse_loss = mse_loss_fn(prediction_avg, target_avg)
-
-        return bce_loss + mse_loss, bce_loss, mse_loss
+        return counter
 
     def train_exp(self, fire_name: str, lr: float = 0.1, max_epoch: int = 10, loss_type: int = 0, p_h: float = 0.5,
-                  p_continue_burn: float = 0.3,
+                  p_continue_burn: float = 0.3, steps_update_interval: int = 30,
                   run_name: str = ''):
         log_dir = os.path.join('/root/tf-logs', run_name)
         writer = SummaryWriter(log_dir=log_dir)
@@ -120,15 +123,13 @@ class Trainer:
         })
 
         self.lr = lr
-        self.max_epoch = max_epoch
-        self.steps_update_interval = self.max_steps // fg_ds.attrs['day_count']
         self.reset()
 
         postfix = {}
-        for epoch in range(self.max_epoch): # [0, max_epoch - 1]
-            postfix['epoch'] = f'{epoch + 1}/{self.max_epoch}'
+        max_iteration = fg_ds.attrs['day_count']
+        for epoch in range(max_epoch):  # [0, max_epoch - 1]
+            postfix['epoch'] = f'{epoch + 1}/{max_epoch}'
             self.model.reset()
-            max_iteration = self.max_steps // self.steps_update_interval
 
             accumulators = []
             accumulator_masks = []
@@ -137,24 +138,23 @@ class Trainer:
             affected_cell_count_pred = []
             affected_cell_count_targ = []
 
-            with tqdm(total=max_iteration) as progress_bar:
+            with (tqdm(total=max_iteration) as progress_bar):
                 batch_seed = self.model.seed
-                for iteration in range(max_iteration):
+                for iteration in range(max_iteration):  # [0, day_count - 1]
                     postfix['iteration'] = f'{iteration + 1}/{max_iteration}'
-                    batch_max_step = min(self.max_steps, (iteration + 1) * self.steps_update_interval)
-
-                    # recover the situation
+                    batch_max_step = (iteration + 1) * steps_update_interval
 
                     for step in range(batch_max_step):
                         postfix['step'] = f'{step + 1}/{batch_max_step}'
 
                         # update wind
-                        self.model.wind_towards_direction = torch.tensor(
-                            fg_ds['wind_towards_direction'][step // self.steps_update_interval][:],
-                            dtype=self.dtype, device=self.device)
-                        self.model.wind_V = torch.tensor(fg_ds['wind_V'][step // self.steps_update_interval][:],
-                                                         dtype=self.dtype,
-                                                         device=self.device)
+                        if step % steps_update_interval == 0:
+                            self.model.wind_towards_direction = torch.tensor(
+                                fg_ds['wind_towards_direction'][step // steps_update_interval][:],
+                                dtype=self.dtype, device=self.device)
+                            self.model.wind_V = torch.tensor(fg_ds['wind_V'][step // steps_update_interval][:],
+                                                             dtype=self.dtype,
+                                                             device=self.device)
 
                         # Perform a forward pass
                         self.model.compute(attach=self.check_if_attach(batch_max_step, step))
@@ -283,7 +283,7 @@ if __name__ == "__main__":
     parser.add_argument('--run_name', type=str, required=False, default='default', help='Run name')
 
     args = parser.parse_args()
-    trainer = Trainer(device=torch.device(args.device), dtype=torch.float32)
+    trainer = RealFireTrainer(device=torch.device(args.device), dtype=torch.float32)
     trainer.train_exp(fire_name=args.fire_name, lr=args.lr, max_epoch=args.max_epoch, loss_type=args.loss_type,
                       p_h=args.p_h, p_continue_burn=args.p_continue_burn,
                       run_name=args.run_name)

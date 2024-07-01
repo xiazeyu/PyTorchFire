@@ -8,7 +8,7 @@ from einops import repeat
 from torch import nn
 from tqdm import tqdm
 
-from WildTorchModel import WildfireModel
+from model import WildfireModel
 
 
 class InitialGenerator:
