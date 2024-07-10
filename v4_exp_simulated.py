@@ -11,7 +11,7 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from model import WildfireModel
+from pytorchfire.model import WildfireModel
 from trainer import Trainer
 
 
