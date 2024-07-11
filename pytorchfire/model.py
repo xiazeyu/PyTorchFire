@@ -155,7 +155,7 @@ class WildfireModel(nn.Module):
 
         self.state = new_state
 
-    def forward(self, attach: bool = False):
+    def forward(self, attach: bool = False) -> torch.Tensor:
         self.compute(attach)
         if self.training:
             return self.accumulator
