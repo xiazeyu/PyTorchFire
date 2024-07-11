@@ -2,40 +2,60 @@ import torch
 from einops import repeat, reduce
 from torch import nn
 
-KEEP_ACC_MASK = False
-DEFAULT_DEVICE = torch.device('cpu')
-DEFAULT_DTYPE = torch.float32
 DEFAULT_SIZE = 500
 
 
+# noinspection PyAttributeOutsideInit
 class WildfireModel(nn.Module):
-    def __init__(self, data: dict = None, params: dict = None):
+    def __init__(self, env_data: dict = None, params: dict = None, keep_acc_mask: bool = False):
         super(WildfireModel, self).__init__()
-        if data is None:
-            data = {}
-        if params is None:
-            params = {}
 
-        self.p_veg = data.get('p_veg',
-                              torch.zeros(DEFAULT_SIZE, DEFAULT_SIZE, dtype=torch.float32, device=DEFAULT_DEVICE))
-        self.p_den = data.get('p_den', torch.zeros_like(self.p_veg))
-        self.wind_V = data.get('wind_V', torch.zeros_like(self.p_veg))
-        self.wind_towards_direction = data.get('wind_towards_direction', torch.zeros_like(self.p_veg))
-        self.slope = data.get('slope', torch.zeros_like(self.p_veg))
-        self.initial_ignition = data.get('initial_ignition', torch.zeros_like(self.p_veg, dtype=torch.bool))
+        env_data = {} if env_data is None else env_data
+        params = {} if params is None else params
+        self.keep_acc_mask = keep_acc_mask
 
-        self.parameter_dict = nn.ParameterDict({'a': nn.Parameter(params.get('a', torch.tensor(.0))),
-                                                'p_h': nn.Parameter(params.get('p_h', torch.tensor(.3))),
-                                                'c_1': nn.Parameter(params.get('c_1', torch.tensor(.0))),
-                                                'c_2': nn.Parameter(params.get('c_2', torch.tensor(.0))),
-                                                'p_continue': nn.Parameter(params.get('p_continue', torch.tensor(.3)),
-                                                                           requires_grad=False), })
+        self.register_parameter('a', nn.Parameter(params.get('a', torch.tensor(.0))))
+        self.register_parameter('p_h', nn.Parameter(params.get('p_h', torch.tensor(.3))))
+        self.register_parameter('c_1', nn.Parameter(params.get('c_1', torch.tensor(.0))))
+        self.register_parameter('c_2', nn.Parameter(params.get('c_2', torch.tensor(.0))))
+        self.register_parameter('p_continue',
+                                nn.Parameter(params.get('p_continue', torch.tensor(.3)), requires_grad=False))
 
-        self.state = self._initialize_state(self.initial_ignition)
-        self.accumulator = self._initialize_accumulator(self.initial_ignition)
-        if KEEP_ACC_MASK:
-            self.accumulator_mask = self._initialize_accumulator_mask(self.accumulator)
+        self.register_buffer('p_veg', env_data.get('p_veg', torch.zeros(DEFAULT_SIZE, DEFAULT_SIZE)))
+        self.register_buffer('p_den', env_data.get('p_den', torch.zeros_like(self.p_veg)))
+        self.register_buffer('wind_velocity', env_data.get('wind_velocity', torch.zeros_like(self.p_veg)))
+        self.register_buffer('wind_towards_direction',
+                             env_data.get('wind_towards_direction', torch.zeros_like(self.p_veg)))
+        self.register_buffer('slope', env_data.get('slope', repeat(torch.zeros_like(self.p_veg), 'h w -> h w 3 3')))
+        self.register_buffer('initial_ignition',
+                             env_data.get('initial_ignition', torch.zeros_like(self.p_veg, dtype=torch.bool)))
+        self.register_buffer('state', self._initialize_state(self.initial_ignition))
+        if self.training:
+            self.register_buffer('accumulator', self._initialize_accumulator(self.initial_ignition))
+            if self.keep_acc_mask:
+                self.register_buffer('accumulator_mask', self._initialize_accumulator_mask(self.accumulator))
         self.seed = self._initialize_seed()
+
+        self.sanity_check()
+
+    def sanity_check(self):
+        assert self.a.shape == self.p_h.shape == self.c_1.shape == self.c_2.shape == self.p_continue.shape == ()
+        assert (self.p_veg.shape == self.p_den.shape == self.wind_velocity.shape ==
+                self.wind_towards_direction.shape == self.initial_ignition.shape)
+        assert self.slope.shape == (*self.p_veg.shape, 3, 3)
+        assert self.state.shape == (2, *self.p_veg.shape)
+        assert (self.a.device == self.p_h.device == self.c_1.device == self.c_2.device == self.p_continue.device ==
+                self.p_veg.device == self.p_den.device == self.wind_velocity.device ==
+                self.wind_towards_direction.device == self.slope.device == self.initial_ignition.device ==
+                self.state.device)
+        assert self.initial_ignition.dtype == self.state.dtype == torch.bool
+        if self.training:
+            assert self.accumulator.shape == self.initial_ignition.shape
+            assert self.accumulator.device == self.state.device
+            if self.keep_acc_mask:
+                assert self.accumulator_mask.shape == self.accumulator.shape
+                assert self.accumulator_mask.device == self.state.device
+                assert self.accumulator_mask.dtype == torch.bool
 
     @staticmethod
     def _initialize_state(initial_ignition: torch.Tensor) -> torch.Tensor:
@@ -57,34 +77,36 @@ class WildfireModel(nn.Module):
 
     def reset(self, seed: int = None):
         self.state = self._initialize_state(self.initial_ignition)
-        self.accumulator = self._initialize_accumulator(self.initial_ignition)
-        if KEEP_ACC_MASK:
-            self.accumulator_mask = self._initialize_accumulator_mask(self.accumulator)
+        if self.training:
+            self.accumulator = self._initialize_accumulator(self.initial_ignition)
+            if self.keep_acc_mask:
+                self.accumulator_mask = self._initialize_accumulator_mask(self.accumulator)
         self.seed = self._initialize_seed(seed)
 
     def detach_accumulator(self):
-        self.accumulator = self.accumulator.detach().clone().requires_grad_(True)
+        if self.training:
+            self.accumulator = self.accumulator.detach().clone().requires_grad_(True)
 
     def p_ignite(self) -> torch.Tensor:
         burning, _ = self.state
 
-        p_s = torch.exp(self.parameter_dict.a * torch.deg2rad(self.slope))
+        p_s = torch.exp(self.a * self.slope)
 
         # to be used to calculate the angle between wind and fire direction
         wind_offset = torch.tensor([[3, 2, 1], [4, 0, 0], [5, 6, 7]], device=p_s.device) * 45
 
-        wind_offset_tiled = repeat(wind_offset, 'c1 c2 -> 1 1 c1 c2')
+        wind_offset_tiled = repeat(wind_offset, 'c1 c2 -> 1 1 c1 c2', c1=3, c2=3)
         wind_towards_direction_expanded = repeat(self.wind_towards_direction, 'h w -> h w 1 1')
-        wind_V_expanded = repeat(self.wind_V, 'h w -> h w 1 1')
-        p_w = torch.exp(self.parameter_dict.c_1 * wind_V_expanded) * torch.exp(
-            self.parameter_dict.c_2 * wind_V_expanded * (
+        wind_velocity_expanded = repeat(self.wind_velocity, 'h w -> h w 1 1')
+        p_w = torch.exp(self.c_1 * wind_velocity_expanded) * torch.exp(
+            self.c_2 * wind_velocity_expanded * (
                     torch.cos(torch.deg2rad((wind_offset_tiled - wind_towards_direction_expanded) % 360)) - 1))
 
-        p_propagate = repeat(self.parameter_dict.p_h * (1 + self.p_veg) * (1 + self.p_den) * p_s,
-                             'h w -> h w 1 1') * p_w
+        p_propagate = repeat(self.p_h * (1 + self.p_veg) * (1 + self.p_den),
+                             'h w -> h w 1 1') * p_s * p_w
 
-        prob_act_c = 1.1486328125
-        p_propagate = torch.tanh(prob_act_c * p_propagate)
+        prob_like_act_c = 1.1486328125
+        p_propagate = torch.tanh(prob_like_act_c * p_propagate)
 
         # out-of-bounds access in p_propagate is avoided by the slicing, and in state will result in 0
 
@@ -112,21 +134,30 @@ class WildfireModel(nn.Module):
 
         # burnable cells have p_burn probability to become burning
         burnable = ~(burning | burned)
-        new_burning_digits = torch.where(burnable, nn.ReLU()(p_ignite - rand_propagate), 0)
+        new_burning_digits = torch.where(burnable, nn.functional.relu(p_ignite - rand_propagate), 0)
         new_burning_mask = new_burning_digits > 0
 
-        if attach:
-            self.accumulator = self.accumulator + torch.where(new_burning_mask, p_ignite, 0)
-            if KEEP_ACC_MASK:
-                self.accumulator_mask[new_burning_mask] = True
-        else:
-            self.accumulator = self.accumulator + torch.where(new_burning_mask, p_ignite.detach(), 0)
+        if self.training:
+            if attach:
+                self.accumulator = self.accumulator + torch.where(new_burning_mask, p_ignite, 0)
+                if self.keep_acc_mask:
+                    self.accumulator_mask[new_burning_mask] = True
+            else:
+                self.accumulator = self.accumulator + torch.where(new_burning_mask, p_ignite.detach(), 0)
         new_burning[new_burning_mask] = True
 
         # burning cells have p_continue probability to continue burning
-        will_burn_out_digits = torch.where(burning, nn.ReLU()(rand_continue - self.parameter_dict.p_continue), 0)
+        will_burn_out_digits = torch.where(burning, nn.functional.relu(rand_continue - self.p_continue),
+                                           0)
         will_burn_out_mask = will_burn_out_digits > 0
         new_burning[will_burn_out_mask] = False
         new_burned[will_burn_out_mask] = True
 
         self.state = new_state
+
+    def forward(self, attach: bool = False):
+        self.compute(attach)
+        if self.training:
+            return self.accumulator
+        else:
+            return self.state
