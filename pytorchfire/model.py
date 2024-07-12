@@ -76,6 +76,8 @@ class WildfireModel(nn.Module):
         return seed
 
     def reset(self, seed: int = None):
+        self.sanity_check()
+
         self.state = self._initialize_state(self.initial_ignition)
         if self.training:
             self.accumulator = self._initialize_accumulator(self.initial_ignition)

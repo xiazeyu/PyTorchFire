@@ -4,7 +4,7 @@ from torch import nn
 
 
 def convert_wind_components_to_velocity_and_direction(wind_u: torch.Tensor,
-                                                      wind_v: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+                                                      wind_v: torch.Tensor) -> dict[str, torch.Tensor]:
     assert wind_u.shape == wind_v.shape
 
     wind_u = wind_u.clone()
@@ -18,7 +18,10 @@ def convert_wind_components_to_velocity_and_direction(wind_u: torch.Tensor,
     wind_towards_direction = (torch.rad2deg(
         torch.arctan2(wind_v, wind_u)) + 360) % 360  # starting from East and going counterclockwise in degrees
 
-    return wind_velocity, wind_towards_direction
+    return {
+        'wind_velocity': wind_velocity,
+        'wind_towards_direction': wind_towards_direction,
+    }
 
 
 def calculate_slope(altitude: torch.Tensor, cell_size: torch.Tensor) -> torch.Tensor:
