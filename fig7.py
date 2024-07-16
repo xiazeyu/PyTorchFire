@@ -38,7 +38,7 @@ def manhattan_distance(tensor1: torch.Tensor, tensor2: torch.Tensor):
 
 
 # noinspection DuplicatedCode
-class Fig6Trainer(BaseTrainer):
+class Fig7Trainer(BaseTrainer):
     def __init__(self, model: WildfireModel, device: torch.device, run_name: str):
         super().__init__(model, device=device)
         self.run_name = run_name
@@ -47,13 +47,13 @@ class Fig6Trainer(BaseTrainer):
 
         log_dir = os.path.join('/root/tf-logs', self.run_name)
         writer = SummaryWriter(log_dir=log_dir)
-        wind_step_interval = ds.attrs['wind_step_interval']
 
         self.reset()
         self.model.to(self.device)
         self.model.train()
 
-        max_iterations = self.max_steps // self.steps_update_interval
+        wind_step_interval = ds.attrs['wind_step_interval']
+        max_iterations = ds.attrs['day_count']
 
         postfix = {}
         with tqdm() as progress_bar:
@@ -73,7 +73,7 @@ class Fig6Trainer(BaseTrainer):
 
                 for iterations in range(max_iterations):
                     postfix['iteration'] = f'{iterations + 1}/{max_iterations}'
-                    iter_max_steps = min(self.max_steps, (iterations + 1) * self.steps_update_interval)
+                    iter_max_steps = min(self.max_steps, (iterations + 1) * wind_step_interval)
                     progress_bar.reset(total=iter_max_steps)
 
                     for steps in range(iter_max_steps):
@@ -94,7 +94,7 @@ class Fig6Trainer(BaseTrainer):
                         progress_bar.update(1)
 
                     outputs = self.model.accumulator
-                    targets = ds['target'][iter_max_steps - 1]
+                    targets = ds['target'][iterations]
                     targets_list.append(targets)
                     targets = torch.tensor(targets, device=self.device)
 
@@ -199,7 +199,7 @@ class Fig6Trainer(BaseTrainer):
                     outputs = self.model.state[0] | self.model.state[1]
 
                     if (steps + 1) % self.steps_update_interval == 0:
-                        targets = ds['target'][steps]
+                        targets = ds['target'][steps // wind_step_interval]
                         targets = torch.tensor(targets, device=self.device)
                         running_jaccard.append(jaccard_index(targets, outputs))
                         affected_cell_count_outputs.append(outputs.sum().item())
@@ -237,16 +237,16 @@ if __name__ == "__main__":
     parser.add_argument('--max_epochs', type=int, required=False, default=10)
     parser.add_argument('--device', type=str, required=False, default='cuda:0')
     parser.add_argument('--run_name', type=str, required=False, default='default')
-    parser.add_argument('--steps_update_interval', type=int, required=False, default=10)
     parser.add_argument('--lr', type=float, required=False, default=0.005)
+    parser.add_argument('--p_continue', type=float, required=False, default=0.3)
     parser.add_argument('--mode', type=str, required=False, default='train')
 
     args = parser.parse_args()
 
-    with h5py.File('fig6_targets.hdf5', 'r') as f_in:
+    with h5py.File('fig7_targets.hdf5', 'r') as f_in:
         f_in_ds = f_in[str(args.exp_id)]
 
-        trainer = Fig6Trainer(model=WildfireModel({
+        trainer = Fig7Trainer(model=WildfireModel({
             'p_veg': torch.tensor(f_in_ds['p_veg'][:]),
             'p_den': torch.tensor(f_in_ds['p_den'][:]),
             'wind_towards_direction': torch.tensor(f_in_ds['wind_towards_direction'][:][0]),
@@ -256,12 +256,11 @@ if __name__ == "__main__":
         }, {
             'a': torch.tensor(0.),
             'p_h': torch.tensor(args.p_h),
-            'p_continue': torch.tensor(f_in_ds.attrs['p_continue']),
+            'p_continue': torch.tensor(args.p_continue),
             'c_1': torch.tensor(0.),
             'c_2': torch.tensor(0.),
         }, keep_acc_mask=True), device=torch.device(args.device), run_name=args.run_name)
         trainer.max_epochs = args.max_epochs
-        trainer.steps_update_interval = args.steps_update_interval
         trainer.max_steps = f_in_ds.attrs['max_steps']
         trainer.lr = args.lr
 
@@ -271,4 +270,3 @@ if __name__ == "__main__":
             trainer.my_evaluate(ds=f_in_ds)
         elif args.mode == 'repeat':
             trainer.my_evaluate(ds=f_in_ds, repeat=True)
-
