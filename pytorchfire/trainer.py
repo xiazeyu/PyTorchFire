@@ -26,9 +26,10 @@ class BaseTrainer:
         self.update_steps_in_between = 5
 
         self.device = device
+        self.seed = None
 
     def reset(self):
-        self.model.reset()
+        self.model.reset(seed=self.seed)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
     @staticmethod
