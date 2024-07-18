@@ -7,6 +7,24 @@ DEFAULT_SIZE = 500
 
 # noinspection PyAttributeOutsideInit
 class WildfireModel(nn.Module):
+    """
+    Wildfire model.
+
+    Parameters:
+        env_data:
+            The environment data.
+        params:
+            The parameters.
+        keep_acc_mask:
+            Whether to keep the accumulator mask.
+
+    Examples:
+        >>> model = WildfireModel()
+
+    Shape:
+        - Input: :math:`(N, H, W)`.
+        - Output: :math:`(N, H, W)`.
+    """
     def __init__(self, env_data: dict = None, params: dict = None, keep_acc_mask: bool = False):
         super(WildfireModel, self).__init__()
 

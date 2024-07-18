@@ -1,0 +1,3 @@
+# WildfireModel
+
+::: pytorchfire.WildfireModel

@@ -96,6 +96,9 @@ class BaseTrainer:
     def train(self):
         print('Modify the train method to train your model')
 
+        # TODO: add initial ignition
+
+
         self.reset()
         self.model.to(self.device)
         self.model.train()
