@@ -5,6 +5,43 @@ from torch import nn
 
 def convert_wind_components_to_velocity_and_direction(wind_u: torch.Tensor,
                                                       wind_v: torch.Tensor) -> dict[str, torch.Tensor]:
+    """
+    Convert wind components to velocity and direction.
+
+    Parameters:
+        wind_u (torch.Tensor):
+            Wind component u. (Eastward wind component)
+
+            - dtype: `torch.float`
+            - shape: `[Height, Width]`
+
+        wind_v (torch.Tensor):
+            Wind component v. (Northward wind component)
+
+            - dtype: `torch.float`
+            - shape: `[Height, Width]`
+
+    Returns:
+        A dictionary containing the following
+
+            - `wind_velocity` (`torch.Tensor`): Wind velocity. (m/s)
+                - dtype: `torch.float`
+                - shape: `[Height, Width]`
+            - `wind_towards_direction` (`torch.Tensor`): Wind direction. (degrees, starting from East and going
+                    counterclockwise)
+                - dtype: `torch.float`
+                - shape: `[Height, Width]`
+
+    Examples:
+        ```python
+        wind_u = torch.rand(3, 3)
+        wind_v = torch.rand(3, 3)
+        convert_wind_components_to_velocity_and_direction(wind_u, wind_v)
+        ```
+
+    Raises:
+        AssertionError: If the shapes of `wind_u` and `wind_v` are not the same.
+    """
     assert wind_u.shape == wind_v.shape
 
     wind_u = wind_u.clone()
@@ -25,6 +62,35 @@ def convert_wind_components_to_velocity_and_direction(wind_u: torch.Tensor,
 
 
 def calculate_slope(altitude: torch.Tensor, cell_size: torch.Tensor) -> torch.Tensor:
+    """
+    Calculate the slope of the terrain.
+
+    Parameters:
+        altitude (torch.Tensor):
+            Altitude of the terrain. (m)
+            - dtype: `torch.float`
+            - shape: `[Height, Width]`
+
+        cell_size (torch.Tensor):
+            Size of the cell. (m)
+            - dtype: `torch.float`
+            - shape: `[]`
+
+    Returns:
+        Slope of the terrain. (degrees)
+            - dtype: `torch.float`
+            - shape: `[Height, Width]`
+
+    Examples:
+        ```python
+        altitude = torch.rand(3, 3)
+        cell_size = torch.tensor(1.0)
+        calculate_slope(altitude, cell_size)
+        ```
+
+    Raises:
+        AssertionError: If the shape of `cell_size` is not `[]`.
+    """
     assert cell_size.shape == ()
 
     altitude = repeat(altitude, 'h w -> 1 1 h w')

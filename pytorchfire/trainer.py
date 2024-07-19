@@ -6,10 +6,93 @@ from einops import repeat
 from torch import nn
 
 if TYPE_CHECKING:
+    # This import is only executed by type checkers; it will not run at runtime.
     from model import WildfireModel
 
 
 class BaseTrainer:
+    """
+    Base class for training a WildfireModel.
+
+    Attributes:
+        model (WildfireModel):
+            The model to train.
+
+        lr (float):
+            The learning rate for the optimizer.
+
+            The optimal learning rate depends on the model and the dataset.
+            We recommend using a learning rate between `1e-2` to `1e-3`.
+
+            Higher learning rates can speed up training, but might lead to instability.
+
+        optimizer (torch.optim.Optimizer):
+            The optimizer to use for training.
+
+            We recommend using `torch.optim.AdamW` as the optimizer.
+
+            Changing the optimizer may require changing the `lr` parameter.
+
+        max_epochs (int):
+            The maximum number of epochs to train for.
+
+            We recommend using a minimum of 10 epochs.
+
+        max_steps (int):
+            The maximum number of steps to train for.
+
+            This is a general upper limit for the number of steps to train for if you are not using customized epochs.
+
+        steps_update_interval (int):
+            The number of steps after which to update the model.
+
+            This parameter depends on the number of data points.
+
+            For example, if you have 200 data points, you can set this to 10. This will update the model every 10 steps.
+            Making the number of epochs 20.
+
+        update_steps_first (int):
+            The number of steps to update the model at the beginning.
+
+        update_steps_last (int):
+            The number of steps to update the model at the end.
+
+        update_steps_in_between (int):
+            The number of steps to update the model in between the first and last steps.
+
+        device (torch.device):
+            The device to use for training.
+
+            We recommend using `torch.device('cuda')` if you have a GPU.
+
+        seed (int):
+            The seed to use for reproducibility.
+
+    Examples:
+        ```python
+        import torch
+
+        model = WildfireModel()
+        model.initial_ignition = torch.rand(SIZE, SIZE) > .9
+        trainer = BaseTrainer(model)
+
+        trainer.train()
+        trainer.evaluate()
+        ```
+    """
+
+    model: 'WildfireModel'
+    lr: float
+    optimizer: torch.optim.Optimizer
+    max_epochs: int
+    max_steps: int
+    steps_update_interval: int
+    update_steps_first: int
+    update_steps_last: int
+    update_steps_in_between: int
+    device: torch.device
+    seed: int
+
     def __init__(self, model: 'WildfireModel', optimizer: torch.optim.Optimizer = None,
                  device: torch.device = torch.device('cpu')):
         self.model = model
