@@ -22,7 +22,7 @@ class BaseTrainer:
             The learning rate for the optimizer.
 
             The optimal learning rate depends on the model and the dataset.
-            We recommend using a learning rate between `1e-2` to `1e-3`.
+            We recommend using a learning rate between `1e-2` to `4e-3`.
 
             Higher learning rates can speed up training, but might lead to instability.
 
@@ -91,10 +91,23 @@ class BaseTrainer:
     update_steps_last: int
     update_steps_in_between: int
     device: torch.device
-    seed: int
+    seed: int | None
 
     def __init__(self, model: 'WildfireModel', optimizer: torch.optim.Optimizer = None,
                  device: torch.device = torch.device('cpu')):
+        """
+        Initialize the trainer.
+
+        Parameters:
+            model (WildfireModel):
+                The model to train.
+
+            optimizer (torch.optim.Optimizer):
+                The optimizer to use for training.
+
+            device (torch.device):
+                The device to use for training.
+        """
         self.model = model
         self.lr = 0.005
         if optimizer is None:
@@ -112,6 +125,9 @@ class BaseTrainer:
         self.seed = None
 
     def reset(self):
+        """
+        Reset the model and optimizer.
+        """
         self.model.reset(seed=self.seed)
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
 
@@ -119,6 +135,25 @@ class BaseTrainer:
     @cache
     def steps_to_attach(max_steps: int, update_steps_first: int, update_steps_last: int,
                         update_steps_in_between: int) -> list[int]:
+        """
+        Get the steps to attach the model.
+
+        Parameters:
+            max_steps (int):
+                The maximum number of steps to train for.
+
+            update_steps_first (int):
+                The number of steps to update the model at the beginning.
+
+            update_steps_last (int):
+                The number of steps to update the model at the end.
+
+            update_steps_in_between (int):
+                The number of steps to update the model in between the first and last steps.
+
+        Returns:
+            The steps to attach to the accumulator.
+        """
         if max_steps <= update_steps_first + update_steps_last + update_steps_in_between:
             return sorted(range(max_steps))
         update_steps = set()
@@ -136,11 +171,46 @@ class BaseTrainer:
         return sorted(update_steps)
 
     def check_if_attach(self, max_steps: int, current_steps: int) -> bool:
+        """
+        Check if current step should be attached to the accumulator.
+
+        Parameters:
+            max_steps (int):
+                The maximum number of steps to train for.
+
+            current_steps (int):
+                The current step.
+
+        Returns:
+            Whether the current step should be attached to the accumulator.
+        """
         return current_steps in self.steps_to_attach(max_steps, self.update_steps_first, self.update_steps_last,
                                                      self.update_steps_in_between)
 
     @staticmethod
-    def criterion(inputs: torch.Tensor, target: torch.Tensor):
+    def criterion(inputs: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Calculate the loss.
+
+        Parameters:
+            inputs (torch.Tensor):
+                The input tensor.
+
+                - dtype: `torch.float`
+                - shape: `[Height, Width]`
+
+            target (torch.Tensor):
+                The target tensor.
+
+                - dtype: `torch.float`
+                - shape: `[Height, Width]`
+
+        Returns:
+            The loss.
+
+                - dtype: `torch.float`
+                - shape: `[]`
+        """
         inputs = inputs.float()
         target = target.float()
 
@@ -176,11 +246,42 @@ class BaseTrainer:
 
         return bce_loss + mse_loss
 
+    def backward(self, loss: torch.Tensor):
+        """
+        Perform the backward pass.
+
+        Parameters:
+            loss (torch.Tensor):
+                The loss to back-propagate.
+
+                - dtype: `torch.float`
+                - shape: `[]`
+        """
+        loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+        with torch.no_grad():
+            self.model.a.clamp_(min=0.0, max=1.0)
+            self.model.c_1.clamp_(min=0.0, max=1.0)
+            self.model.c_2.clamp_(min=0.0, max=1.0)
+            self.model.p_h.clamp_(min=0.2, max=1.0)
+
     def train(self):
+        """
+        Train the model.
+
+        This method is a placeholder. Implement this method in your subclass.
+
+        You can do in-place operations on the model in this method.
+
+        E.g., `model.wind_velocity = torch.rand_like(model.wind_velocity)`, or `model.a.data = torch.rand(())`
+        """
+
         print('Modify the train method to train your model')
 
-        # TODO: add initial ignition
-
+        # Remove this line after implementing the train method
+        self.model.initial_ignition = torch.rand_like(self.model.initial_ignition) > .9
 
         self.reset()
         self.model.to(self.device)
@@ -212,18 +313,17 @@ class BaseTrainer:
                     f"Epoch Loss: {running_loss / max_iterations}"
                 )
 
-    def backward(self, loss: torch.Tensor):
-        loss.backward()
-        self.optimizer.step()
-        self.optimizer.zero_grad()
-
-        with torch.no_grad():
-            self.model.a.clamp_(min=0.0, max=1.0)
-            self.model.c_1.clamp_(min=0.0, max=1.0)
-            self.model.c_2.clamp_(min=0.0, max=1.0)
-            self.model.p_h.clamp_(min=0.2, max=1.0)
-
     def evaluate(self):
+        """
+        Evaluate the model.
+
+        This method is a placeholder. Implement this method in your subclass.
+
+        You can do in-place operations on the model in this method.
+
+        E.g., `model.wind_velocity = torch.rand_like(model.wind_velocity)`, or `model.a.data = torch.rand(())`
+        """
+
         print('Modify the evaluate method to evaluate your model')
 
         self.reset()
