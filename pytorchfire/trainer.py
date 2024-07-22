@@ -294,9 +294,9 @@ class BaseTrainer:
             epoch_seed = self.model.seed
             running_loss = 0.0
             for iterations in range(max_iterations):
-                batch_max_steps = min(self.max_steps, (iterations + 1) * self.steps_update_interval)
-                for steps in range(batch_max_steps):
-                    self.model.compute(attach=self.check_if_attach(batch_max_steps, steps))
+                iter_max_steps = min(self.max_steps, (iterations + 1) * self.steps_update_interval)
+                for steps in range(iter_max_steps):
+                    self.model.compute(attach=self.check_if_attach(iter_max_steps, steps))
 
                 outputs = self.model.accumulator
                 targets = self.model.accumulator  # replace your target here
