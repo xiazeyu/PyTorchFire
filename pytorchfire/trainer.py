@@ -291,7 +291,7 @@ class BaseTrainer:
 
         for epochs in range(self.max_epochs):
             self.model.reset()
-            batch_seed = self.model.seed
+            epoch_seed = self.model.seed
             running_loss = 0.0
             for iterations in range(max_iterations):
                 batch_max_steps = min(self.max_steps, (iterations + 1) * self.steps_update_interval)
@@ -305,7 +305,7 @@ class BaseTrainer:
                 running_loss += loss.item()
 
                 self.backward(loss)
-                self.model.reset(batch_seed)
+                self.model.reset(epoch_seed)
 
                 print(
                     f"Epoch [{epochs + 1}/{self.max_epochs}],"
