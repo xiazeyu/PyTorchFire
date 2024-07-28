@@ -170,16 +170,16 @@ class BaseTrainer:
 
         return sorted(update_steps)
 
-    def check_if_attach(self, max_steps: int, current_steps: int) -> bool:
+    def check_if_attach(self, current_steps: int, max_steps: int) -> bool:
         """
         Check if current step should be attached to the accumulator.
 
         Parameters:
-            max_steps (int):
-                The maximum number of steps to train for.
-
             current_steps (int):
                 The current step.
+
+            max_steps (int):
+                The maximum number of steps to train for.
 
         Returns:
             Whether the current step should be attached to the accumulator.
@@ -296,7 +296,7 @@ class BaseTrainer:
             for iterations in range(max_iterations):
                 iter_max_steps = min(self.max_steps, (iterations + 1) * self.steps_update_interval)
                 for steps in range(iter_max_steps):
-                    self.model.compute(attach=self.check_if_attach(iter_max_steps, steps))
+                    self.model.compute(attach=self.check_if_attach(steps, iter_max_steps))
 
                 outputs = self.model.accumulator
                 targets = self.model.accumulator  # replace your target here
