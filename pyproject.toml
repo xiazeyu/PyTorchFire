@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling", "hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytorchfire"
+dynamic = ["version", "dependencies", "optional-dependencies"]
+description = 'PyTorchFire: Differentiable Wildfire Simulator Using GPU-Accelerated Cellular Automata'
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+keywords = []
+authors = [
+    { name = "Zeyu Xia", email = "zeyu.xia@email.virginia.edu" },
+]
+classifiers = [
+    "Environment :: GPU",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+
+[project.urls]
+Documentation = "https://pytorchfire.readthedocs.io/"
+Issues = "https://github.com/xiazeyu/PyTorchFire/issues"
+Source = "https://github.com/xiazeyu/PyTorchFire"
+
+[tool.hatch.version]
+path = "pytorchfire/__about__.py"
+
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+examples = ["requirements-examples.txt"]
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "mkdocs",
+    "mkdocstrings[python]",
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build --clean --strict"
+serve = "mkdocs serve -w pytorchfire/ --dev-addr localhost:8000"

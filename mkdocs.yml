@@ -1,0 +1,20 @@
+site_name: PyTorchFire
+repo_url: https://github.com/xiazeyu/PyTorchFire
+nav:
+  - index.md
+  - API Reference:
+      - reference/model.md
+      - reference/trainer.md
+      - reference/utils.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            merge_init_into_class: true
+            annotations_path: source
+theme: readthedocs
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
