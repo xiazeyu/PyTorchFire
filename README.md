@@ -20,10 +20,12 @@ pip install 'pytorchfire[examples]'
 ### Quick Start
 
 ```shell
-pip install 'wildtorch[full]'
+pip install pytorchfire
 ```
 
-Perform wildfire prediction:
+Then,
+
+To perform wildfire prediction:
 
 ```python
 from pytorchfire import WildfireModel
@@ -35,7 +37,7 @@ for _ in range(100): # Run the model for 100 steps
     model.compute() # Compute the next state
 ```
 
-Perform parameter calibration:
+To perform parameter calibration:
 
 ```python
 import torch
