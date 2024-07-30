@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pytorchfire"
 dynamic = ["version", "dependencies", "optional-dependencies"]
-description = 'PyTorchFire: Differentiable Wildfire Simulator Using GPU-Accelerated Cellular Automata'
+description = 'PyTorchFire: A GPU-Accelerated Wildfire Simulator with Differentiable Cellular Automata'
 readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
