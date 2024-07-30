@@ -1,0 +1,7 @@
+einops~=0.8.0
+h5py
+mpi4py
+numpy
+tensorboard
+torch~=2.3.1
+tqdm

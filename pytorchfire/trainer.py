@@ -71,9 +71,10 @@ class BaseTrainer:
     Examples:
         ```python
         import torch
+        from pytorchfire import WildfireModel, BaseTrainer
 
         model = WildfireModel()
-        model.initial_ignition = torch.rand(SIZE, SIZE) > .9
+
         trainer = BaseTrainer(model)
 
         trainer.train()
@@ -231,15 +232,10 @@ class BaseTrainer:
         inputs = repeat(inputs, 'h w -> 1 1 h w')
         target = repeat(target, 'h w -> 1 1 h w')
 
-        conv = nn.Conv2d(1, 1, kernel_size=window_size,
-                         stride=stride, bias=False, device=inputs.device, dtype=inputs.dtype)
-        conv.weight.data.fill_(1.0 / (window_size * window_size))
+        avg_pool = nn.AvgPool2d(kernel_size=window_size, stride=stride)
 
-        for param in conv.parameters():
-            param.requires_grad = False
-
-        inputs_avg = conv(inputs)
-        target_avg = conv(target)
+        inputs_avg = avg_pool(inputs)
+        target_avg = avg_pool(target)
 
         mse_loss_fn = nn.MSELoss()
         mse_loss = mse_loss_fn(inputs_avg, target_avg)
@@ -281,7 +277,7 @@ class BaseTrainer:
         print('Modify the train method to train your model')
 
         # Remove this line after implementing the train method
-        self.model.initial_ignition = torch.rand_like(self.model.initial_ignition) > .9
+        self.model.initial_ignition = (torch.rand_like(self.model.initial_ignition, dtype=torch.float) > .9)
 
         self.reset()
         self.model.to(self.device)

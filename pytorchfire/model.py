@@ -17,21 +17,21 @@ class WildfireModel(nn.Module):
 
     The model uses the following formula to calculate the probability of a cell propagating fire to its neighbors:
 
-    $$ p_\\text{propagate}=p_h(1+p_\\text{veg})(1+p_\\text{den})p_wp_s $$
+    $$ p_\\text{propagate} = p_h (1 + p_\\text{veg}) (1 + p_\\text{den}) p_w p_s $$
 
     in which,
 
-    $$ p_w=\\exp(c_1V)\\exp(c_2V(\\cos(\\theta)-1)) $$
+    $$ p_w = \\exp(c_1 V_w) \\exp(c_2 V_w (\\cos(\\theta_w) - 1)) $$
 
-    $$ p_s=\\exp(a\\theta_s) $$
+    $$ p_s = \\exp(a \\theta_s) $$
 
     The model also uses the following formula to correct the probability into correct range:
 
-    $$ p_\\text{out} = \\tanh(c\\cdot p_\\text{in})\\text{, where } c=1.1486328125$$
+    $$ f_p(x) = \\tanh(c \\cdot x) \\text{, where } c=1.1486328125$$
 
     To calculate the probability of a cell igniting by its neighbors, the model uses the following formula:
 
-    $$ p_\\text{ignite}=1-\\prod_{i=1}^{8}{(1-{p_\\text{propagate}}_i)} $$
+    $$ p_{\\text{ignite}, i} = 1 - \\prod_{j=1}^{8} (1 - p_{\\text{propagate}, i, j}) $$
 
     Attributes:
         keep_acc_mask (bool):
@@ -153,6 +153,8 @@ class WildfireModel(nn.Module):
 
     Examples:
         ```python
+        from pytorchfire import WildfireModel
+
         model = WildfireModel() # Create a model with default parameters and environment data
         model = model.cuda() # Move the model to GPU
         # model.reset(seed=seed) # Reset the model with a seed

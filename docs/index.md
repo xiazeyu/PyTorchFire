@@ -1,3 +1,3 @@
 # Home
 
-PyTorchFire: Differentiable Wildfire Simulator Using GPU-Accelerated Cellular Automata
+PyTorchFire: A GPU-Accelerated Wildfire Simulator with Differentiable Cellular Automata
