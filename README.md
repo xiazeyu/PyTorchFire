@@ -2,6 +2,7 @@
 
 [![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch)
 [![Read the Docs](https://readthedocs.org/projects/pytorchfire/badge/)](https://pytorchfire.readthedocs.io/)
+[![code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13132218.svg)](https://doi.org/10.5281/zenodo.13132218)
 
 ### Installation
 
