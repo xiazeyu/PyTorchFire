@@ -30,6 +30,8 @@ Source = "https://github.com/xiazeyu/PyTorchFire"
 [tool.hatch.build]
 exclude = [
     "*.ipynb"
+    "*.npz"
+    "*.gif"
 ]
 
 [tool.hatch.version]
