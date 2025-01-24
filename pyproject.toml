@@ -11,7 +11,7 @@ requires-python = ">=3.8"
 license = { file = "LICENSE" }
 keywords = []
 authors = [
-    { name = "Zeyu Xia", email = "zeyu.xia@email.virginia.edu" },
+    { name = "Zeyu Xia", email = "zeyu.xia@virginia.edu" },
 ]
 classifiers = [
     "Environment :: GPU",
