@@ -1,9 +1,16 @@
 # PyTorchFire: A GPU-Accelerated Wildfire Simulator with Differentiable Cellular Automata
 
 [![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch)
+[![PyPI - Version](https://img.shields.io/pypi/v/pytorchfire)](https://pypi.org/project/pytorchfire/)
 [![Read the Docs](https://readthedocs.org/projects/pytorchfire/badge/)](https://pytorchfire.readthedocs.io/)
 [![Code DOI](https://img.shields.io/badge/Code_DOI-10.5281%2Fzenodo.13132218-blue)](https://doi.org/10.5281/zenodo.13132218)
 [![Dataset DOI](https://img.shields.io/badge/Dataset_DOI-10.17632%2Fnx2wsksp9k.1-blue)](https://doi.org/10.17632/nx2wsksp9k.1)
+
+### Jupyter Notebook Examples
+
+- Wildfire Prediction: [examples/prediction.ipynb](examples/prediction.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xiazeyu/PyTorchFire/blob/main/examples/prediction.ipynb)
+
+- Parameter Calibration: [examples/calibration.ipynb](examples/calibration.ipynb) [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xiazeyu/PyTorchFire/blob/main/examples/calibration.ipynb)
 
 ### Installation
 
@@ -20,12 +27,6 @@ pip install 'pytorchfire[examples]'
 ```
 
 ### Quick Start
-
-```shell
-pip install pytorchfire
-```
-
-Then,
 
 To perform wildfire prediction:
 
