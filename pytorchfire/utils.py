@@ -133,3 +133,29 @@ def calculate_slope(altitude: torch.Tensor, cell_size: torch.Tensor) -> torch.Te
     slope = rearrange(torch.rad2deg(torch.arctan(diffs)), '(a b) h w -> h w a b', a=3, b=3)
 
     return slope
+
+def jaccard_index(y_true: torch.Tensor, y_pred: torch.Tensor) -> float:
+    # Ensure the inputs are boolean
+    assert y_true.dtype == y_pred.dtype == torch.bool
+
+    # Calculate intersection and union
+    intersection = torch.sum(y_true & y_pred).float()
+    union = torch.sum(y_true | y_pred).float()
+
+    # Compute Jaccard Index
+    jaccard = intersection / union
+
+    return jaccard.item()
+
+
+def manhattan_distance(tensor1: torch.Tensor, tensor2: torch.Tensor):
+    # Ensure the tensors are of the same shape
+    assert tensor1.shape == tensor2.shape
+
+    # Compute the absolute differences
+    abs_diff = torch.abs(tensor1 - tensor2)
+
+    # Sum the absolute differences
+    manhattan_dist = torch.sum(abs_diff)
+
+    return manhattan_dist.item()
