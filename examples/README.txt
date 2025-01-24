@@ -1,3 +1,9 @@
+Two jupyter notebooks are provided to demonstrate the use of the package.
+
+- prediction.ipynb: This notebook demonstrates how to use the package to predict the fire spread on a simulated dataset.
+
+- calibration.ipynb: This notebook demonstrates how to calibrate the model on a simulated dataset.
+
 Here are some scripts to reproduce the results in the paper.
 
 Commands:
