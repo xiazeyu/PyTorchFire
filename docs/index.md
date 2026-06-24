@@ -29,6 +29,12 @@ Install with dependencies for examples:
 pip install 'pytorchfire[examples]'
 ```
 
+Install together with the [FireDataForge](https://github.com/xiazeyu/FireDataForge) data pipeline:
+
+```shell
+pip install 'pytorchfire[firedataforge]'
+```
+
 ### Quick Start
 
 To perform wildfire prediction:
@@ -56,6 +62,23 @@ trainer = BaseTrainer(model)
 trainer.train()
 trainer.evaluate()
 ```
+
+To run on a real fire downloaded with [FireDataForge](https://github.com/xiazeyu/FireDataForge):
+
+```python
+from pytorchfire import load_event
+
+event = load_event('output/CA3432611848120191010') # A FireDataForge event directory
+model = event.build_model() # WildfireModel seeded with the real fire's layers
+for _ in range(100):
+    model.compute()
+
+target = event.target() # Observed final perimeter, ready as a calibration target
+```
+
+See the [FireDataForge reference](reference/firedataforge.md) and the runnable
+[`examples/firedataforge_simulate.py`](https://github.com/xiazeyu/PyTorchFire/blob/main/examples/firedataforge_simulate.py)
+/ [`examples/firedataforge_calibration.py`](https://github.com/xiazeyu/PyTorchFire/blob/main/examples/firedataforge_calibration.py).
 
 ## Dataset
 

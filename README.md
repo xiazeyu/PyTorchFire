@@ -59,6 +59,12 @@ Install with dependencies for examples:
 pip install 'pytorchfire[examples]'
 ```
 
+Install together with the [FireDataForge](https://github.com/xiazeyu/FireDataForge) data pipeline:
+
+```shell
+pip install 'pytorchfire[firedataforge]'
+```
+
 ### Quick Start
 
 To perform wildfire prediction:
@@ -85,6 +91,41 @@ trainer = BaseTrainer(model)
 
 trainer.train()
 trainer.evaluate()
+```
+
+### Run on Real Fires from FireDataForge
+
+Point PyTorchFire straight at a [FireDataForge](https://github.com/xiazeyu/FireDataForge) event directory. The
+harmonized terrain, fuel, wind, and observed-ignition layers are mapped onto a
+`WildfireModel` for you — no manual preprocessing:
+
+```python
+import torch
+from pytorchfire import load_event
+
+# An event folder produced by FireDataForge (output/<MTBS event id>)
+event = load_event('output/CA3432611848120191010')
+
+model = event.build_model()   # WildfireModel seeded with the real fire
+model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
+for _ in range(100):
+    model.compute()
+
+# The observed final perimeter ships with the event — use it as a calibration target
+target = event.target()       # [H, W] bool tensor
+```
+
+> The reader only needs `numpy` and `torch`, so you can consume FireDataForge
+> outputs without installing the (heavyweight) `firedataforge` package itself.
+
+Runnable scripts:
+
+- Simulate a real fire: [examples/firedataforge_simulate.py](examples/firedataforge_simulate.py)
+- Calibrate parameters against the observed perimeter: [examples/firedataforge_calibration.py](examples/firedataforge_calibration.py)
+
+```shell
+python examples/firedataforge_simulate.py /path/to/output/CA3432611848120191010
+python examples/firedataforge_calibration.py /path/to/output/CA3432611848120191010 --device cuda:0
 ```
 
 ## API Documents
