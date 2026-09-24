@@ -19,11 +19,9 @@ Accurate and rapid prediction of wildfire trends is crucial for effective manage
 
 ## 🚀 New Companion Tool: FireDataForge
 
-[![Conference](https://img.shields.io/badge/Accepted-IEEE_IRI_2026-blue.svg)](#)
-[![arXiv](https://img.shields.io/badge/arXiv-2606.21198-b31b1b.svg)](https://arxiv.org/abs/2606.21198)
-[![Paper DOI](https://img.shields.io/badge/Paper_DOI-TBD-blue.svg)](#)
+[![Paper DOI](https://img.shields.io/badge/Paper_DOI-10.1109%2FIRI69576.2026.00103-blue.svg)](https://doi.org/10.1109/IRI69576.2026.00103)
+[![Green OA](https://img.shields.io/badge/Green_OA-arXiv%3A2606.21198-b31b1b.svg)](https://arxiv.org/abs/2606.21198)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-FireDataForge-181717?logo=github)](https://github.com/xiazeyu/FireDataForge)
-[![Code DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20743742.svg)](https://doi.org/10.5281/zenodo.20743742)
 
 Tired of manually downloading and aligning wildfire data? We are excited to introduce **[FireDataForge](https://github.com/xiazeyu/FireDataForge)**, a unified data pipeline that perfectly complements PyTorchFire. 
 
@@ -32,8 +30,11 @@ FireDataForge solves the preprocessing bottleneck in wildfire research. Simply p
 It is the perfect upstream data provider for your PyTorchFire machine learning models and fire behavior simulations.
 
 **📖 Read the Paper:**
-> **FireDataForge: A Unified Framework for Multi-Source Wildfire Data Retrieval and Integration** > *Zeyu Xia, Lexie Chen, Ye Liu, Huilin Huang* > Accepted to the 2026 IEEE International Conference on Information Reuse and Integration for Data Science (IEEE IRI 2026). > [arXiv:2606.21198](https://arxiv.org/abs/2606.21198)
-> *[The official IEEE DOI will be updated here upon release]*
+> **FireDataForge: A Unified Framework for Multi-Source Wildfire Data Retrieval and Integration**  
+> *Zeyu Xia, Lexie Chen, Ye Liu, Huilin Huang*  
+> In *2026 IEEE International Conference on Information Reuse and Integration for Data Science (IEEE IRI 2026)*, pp. 528–531.  
+> Published version: [doi:10.1109/IRI69576.2026.00103](https://doi.org/10.1109/IRI69576.2026.00103)  
+> Open-access version (Green OA): [arXiv:2606.21198](https://arxiv.org/abs/2606.21198)
 
 👉 **[Get started with FireDataForge here!](https://github.com/xiazeyu/FireDataForge)**
 
@@ -153,6 +154,27 @@ See at Our [Dataset](https://doi.org/10.17632/nx2wsksp9k.1).
  url = {https://www.sciencedirect.com/science/article/pii/S1364815225000854},
  volume = {188},
  year = {2025}
+}
+```
+
+If you use the FireDataForge integration ([`pytorchfire.firedataforge`](pytorchfire/firedataforge.py)), please also cite FireDataForge ([doi:10.1109/IRI69576.2026.00103](https://doi.org/10.1109/IRI69576.2026.00103); open-access version (Green OA): [arXiv:2606.21198](https://arxiv.org/abs/2606.21198)):
+
+```bibtex
+@inproceedings{xia2026firedataforge,
+    address = {Seattle, WA, USA},
+    archiveprefix = {arXiv},
+    author = {Zeyu Xia and Lexie Chen and Ye Liu and Huilin Huang},
+    booktitle = {2026 IEEE International Conference on Information Reuse and Integration for Data Science (IEEE IRI 2026)},
+    doi = {10.1109/IRI69576.2026.00103},
+    eprint = {2606.21198},
+    keywords = {Wildfire research, Geospatial data fusion, Fire behavior simulation, Data reuse, Information retrieval},
+    language = {English},
+    month = jul,
+    pages = {528--531},
+    primaryclass = {cs.CE},
+    publisher = {IEEE},
+    title = {FireDataForge: A Unified Framework for Multi-Source Wildfire Data Retrieval and Integration},
+    year = {2026}
 }
 ```
 

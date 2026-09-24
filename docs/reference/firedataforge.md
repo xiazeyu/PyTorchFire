@@ -1,5 +1,12 @@
 # FireDataForge
 
+> **Paper:** Xia, Z., Chen, L., Liu, Y., & Huang, H. (2026). *FireDataForge: A
+> Unified Framework for Multi-Source Wildfire Data Retrieval and Integration*.
+> In *2026 IEEE International Conference on Information Reuse and Integration
+> for Data Science (IEEE IRI 2026)*, pp. 528–531.
+> [doi:10.1109/IRI69576.2026.00103](https://doi.org/10.1109/IRI69576.2026.00103).
+> Open-access version (Green OA): [arXiv:2606.21198](https://arxiv.org/abs/2606.21198).
+
 Bridge between [FireDataForge](https://github.com/xiazeyu/FireDataForge) event
 outputs and PyTorchFire. FireDataForge turns a single MTBS fire id into a
 directory of harmonized raster layers (terrain, fuels, weather, observed
