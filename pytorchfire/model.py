@@ -25,7 +25,7 @@ class WildfireModel(nn.Module):
 
     $$ p_s = \\exp(a \\theta_s) $$
 
-    $$ p_t = \\exp(c_3 \\cdot (T - T_\\text{ref}) / T_\\text{ref}) $$
+    $$ p_t = \\exp(c_3 \\cdot (T - T_\\text{ref}) / (T_\\text{ref} + 273.15)) $$
 
     The model also uses the following formula to correct the probability into correct range:
 
@@ -78,10 +78,7 @@ class WildfireModel(nn.Module):
         T_ref (torch.Tensor):
             Per-cell reference temperature used to compute the temperature anomaly. Unit is degrees Celsius.
 
-            Loaded from the T_REF GeoTIFF exported alongside the daily temperature rasters, giving
-            each cell its own local seasonal baseline rather than a single county-wide scalar.
-
-            The anomaly is computed cell-wise as ``(temperature - T_ref) / T_ref``, so fire spread
+            The anomaly is computed cell-wise as ``(temperature - T_ref) / (T_ref + 273.15)``, so fire spread
             is amplified where current temperature exceeds the local baseline and suppressed where it
             falls below.
 
@@ -126,9 +123,8 @@ class WildfireModel(nn.Module):
             Per-cell fire behavior fuel model scaling factor derived from the
             Scott & Burgan 40 (SB40) fuel model system.
 
-            Loaded from a .npz file produced by ``bulk_fuel_tif_to_npz.py``,
-            which converts raw LANDFIRE FBfm40 integer codes to float32 values
-            in [0.0, 1.0] using the published SB40 rate-of-spread index.
+            Values are in [0.0, 1.0], mapped from LANDFIRE FBfm40 codes using the
+            published SB40 rate-of-spread index.
 
             Enters ``p_propagate`` as ``(1 + p_fuel)``, consistent with the
             ``(1 + p_veg)`` and ``(1 + p_den)`` terms. A value of 0.0
@@ -245,12 +241,15 @@ class WildfireModel(nn.Module):
                 - `p_veg` (torch.Tensor): The scaling factor for vegetation type.
                 - `p_den` (torch.Tensor): The scaling factor for vegetation density.
                 - `p_fuel` (torch.Tensor): Per-cell SB40 fuel model scaling factor, shape ``[Height, Width]``.
-                    Loaded from a .npz produced by ``bulk_fuel_tif_to_npz.py``.
                     Defaults to ``0.0`` at every cell (neutral — no fuel amplification) when not provided.
                 - `wind_velocity` (torch.Tensor): The wind velocity. Unit is m/s.
                 - `wind_towards_direction` (torch.Tensor): The wind direction. Starting from East and going
                     counterclockwise in degrees.
                 - `slope` (torch.Tensor): The slope of the cell to its neighboring cells. Unit is degrees.
+                - `temperature` (torch.Tensor): Ambient temperature. Unit is degrees Celsius.
+                    Defaults to ``20.0`` at every cell when not provided.
+                - `T_ref` (torch.Tensor): Per-cell reference temperature. Unit is degrees Celsius.
+                    Defaults to ``20.0`` at every cell when not provided.
                 - `initial_ignition` (torch.Tensor): The initial ignition of the cells.
 
             params (dict):
@@ -262,9 +261,6 @@ class WildfireModel(nn.Module):
                 - `c_1` (torch.float): The scaling factor for wind velocity.
                 - `c_2` (torch.float): The scaling factor for wind direction.
                 - `c_3` (torch.float): The scaling factor for temperature anomaly. Defaults to ``0.0`` (disabled).
-                - `T_ref` (torch.Tensor): Per-cell reference temperature in degrees Celsius, shape ``[Height, Width]``.
-                    Loaded from the T_REF GeoTIFF produced by ``export_temperature_to_geotiff.py --save-t-ref``.
-                    Defaults to ``20.0`` at every cell when not provided.
                 - `p_continue` (torch.float): The probability that a burning cell continue to burn at next time step.
 
             keep_acc_mask (bool):
@@ -282,31 +278,18 @@ class WildfireModel(nn.Module):
                 'wind_velocity': torch.rand(SIZE, SIZE) * 10,
                 'wind_towards_direction': torch.rand(SIZE, SIZE) * 360,
                 'slope': torch.rand(SIZE, SIZE, 3, 3) * 90,
-                'temperature': torch.ones(SIZE, SIZE) * 25.0,  # degrees Celsius
+                'p_fuel': torch.rand(SIZE, SIZE),
+                'temperature': torch.ones(SIZE, SIZE) * 25.0,
+                'T_ref': torch.ones(SIZE, SIZE) * 20.0,
                 'initial_ignition': torch.rand(SIZE, SIZE) > .9,
             }
-
-            # Load per-pixel T_ref from the T_REF GeoTIFF exported by
-            # export_temperature_to_geotiff.py --save-t-ref
-            import rasterio
-            with rasterio.open('T_REF_Plumas_CA_....tif') as src:
-                t_ref_array = src.read(1).astype('float32')
-            t_ref_tensor = torch.from_numpy(t_ref_array)  # shape [H, W]
-
-            # Load p_fuel from the .npz produced by bulk_fuel_tif_to_npz.py
-            import numpy as np
-            fuel_data = np.load('FUEL_Plumas_CA_LANDFIRE_FBfm40.npz', allow_pickle=True)
-            p_fuel_tensor = torch.from_numpy(fuel_data['p_fuel'])  # float32 [H, W]
-
-            environment_data['p_fuel'] = p_fuel_tensor
 
             parameters = {
                 'a': torch.tensor(.1),
                 'p_h': torch.tensor(.3),
                 'c_1': torch.tensor(.1),
                 'c_2': torch.tensor(.1),
-                'c_3': torch.tensor(.0),   # start disabled; tune via calibration
-                'T_ref': t_ref_tensor,     # [H, W] per-pixel seasonal baseline
+                'c_3': torch.tensor(.0),
                 'p_continue': torch.tensor(.3),
             }
             model = WildfireModel(env_data=environment_data, params=parameters)
@@ -326,21 +309,15 @@ class WildfireModel(nn.Module):
         self.register_parameter('p_continue',
                                 nn.Parameter(params.get('p_continue', torch.tensor(.3)), requires_grad=False))
 
-        # T_ref is a fixed per-cell reference temperature (not learnable); stored as a buffer so it
-        # moves with the model across devices. Defaults to 20.0 °C at every cell when not provided.
-        # When loaded from a T_REF GeoTIFF, shape is [H, W], matching temperature and p_veg exactly.
-        self.register_buffer('T_ref', params.get('T_ref', torch.full_like(self.p_veg, 20.0)))
-
         self.register_buffer('p_veg', env_data.get('p_veg', torch.zeros(DEFAULT_SIZE, DEFAULT_SIZE)))
         self.register_buffer('p_den', env_data.get('p_den', torch.zeros_like(self.p_veg)))
-        # p_fuel defaults to 0.0 (neutral — no amplification) so existing code that
-        # does not supply fuel data is fully backward compatible: (1 + 0.0) = 1.0.
         self.register_buffer('p_fuel', env_data.get('p_fuel', torch.zeros_like(self.p_veg)))
         self.register_buffer('wind_velocity', env_data.get('wind_velocity', torch.zeros_like(self.p_veg)))
         self.register_buffer('wind_towards_direction',
                              env_data.get('wind_towards_direction', torch.zeros_like(self.p_veg)))
         self.register_buffer('slope', env_data.get('slope', repeat(torch.zeros_like(self.p_veg), 'h w -> h w 3 3')))
         self.register_buffer('temperature', env_data.get('temperature', torch.full_like(self.p_veg, 20.0)))
+        self.register_buffer('T_ref', env_data.get('T_ref', torch.full_like(self.p_veg, 20.0)))
         self.register_buffer('initial_ignition',
                              env_data.get('initial_ignition', torch.zeros_like(self.p_veg, dtype=torch.bool)))
         self.register_buffer('state', self._initialize_state(self.initial_ignition))
@@ -476,14 +453,9 @@ class WildfireModel(nn.Module):
         p_w = torch.exp(self.c_1 * wind_velocity_expanded) * torch.exp(self.c_2 * wind_velocity_expanded * (
                 torch.cos(torch.deg2rad((wind_offset_tiled - wind_towards_direction_expanded) % 360)) - 1))
 
-        # Temperature anomaly factor: p_t > 1 amplifies spread above T_ref, < 1 suppresses below.
-        # c_3 = 0 disables the factor entirely (exp(0) = 1), preserving backward compatibility.
-        T_anomaly = (self.temperature - self.T_ref) / self.T_ref
+        T_anomaly = (self.temperature - self.T_ref) / (self.T_ref + 273.15)
         p_t = torch.exp(self.c_3 * T_anomaly)
 
-        # p_fuel encodes SB40 fire behavior fuel model intensity per cell [H, W].
-        # Enters as (1 + p_fuel), consistent with (1 + p_veg) and (1 + p_den).
-        # p_fuel = 0.0 for non-burnable cells → factor of 1.0, no amplification.
         p_propagate = repeat(
             self.p_h * (1 + self.p_veg) * (1 + self.p_den) * (1 + self.p_fuel),
             'h w -> h w 1 1'
