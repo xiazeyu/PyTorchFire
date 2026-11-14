@@ -128,7 +128,7 @@ def calculate_slope(altitude: torch.Tensor, cell_size: torch.Tensor) -> torch.Te
     diffs = rearrange(nn.functional.conv2d(altitude, kernels), '1 c h w -> c h w')
 
     diffs[[1, 3, 5, 7]] /= cell_size
-    diffs[[0, 2, 4, 8]] /= (cell_size * torch.sqrt(torch.tensor(2.)))
+    diffs[[0, 2, 6, 8]] /= (cell_size * torch.sqrt(torch.tensor(2.)))
 
     slope = rearrange(torch.rad2deg(torch.arctan(diffs)), '(a b) h w -> h w a b', a=3, b=3)
 

@@ -4,6 +4,17 @@ Two jupyter notebooks are provided to demonstrate the use of the package.
 
 - calibration.ipynb: This notebook demonstrates how to calibrate the model on a simulated dataset.
 
+FireDataForge integration (run PyTorchFire on real fires):
+
+- firedataforge_simulate.py: Load a FireDataForge event directory, build a
+  WildfireModel from its harmonized layers, simulate, and score against the
+  observed final perimeter.
+  Usage: python firedataforge_simulate.py /path/to/output/<event_id>
+
+- firedataforge_calibration.py: Calibrate the physical parameters by gradient
+  descent against the observed burn perimeter that ships with each event.
+  Usage: python firedataforge_calibration.py /path/to/output/<event_id> --device cuda:0
+
 Here are some scripts to reproduce the results in the paper.
 
 Commands:

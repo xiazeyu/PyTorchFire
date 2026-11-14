@@ -1,0 +1,56 @@
+cff-version: 1.2.0
+message: "If you use PyTorchFire, please cite the article in 'preferred-citation'."
+title: PyTorchFire
+type: software
+doi: 10.5281/zenodo.13132218
+url: https://doi.org/10.5281/zenodo.13132218
+license: MIT
+repository-code: https://github.com/xiazeyu/PyTorchFire
+authors:
+  - family-names: Xia
+    given-names: Zeyu
+    orcid: "https://orcid.org/0000-0003-0234-5857"
+    affiliation: University of Virginia
+  - family-names: Cheng
+    given-names: Sibo
+    orcid: "https://orcid.org/0000-0002-8707-2589"
+    affiliation: "CEREA, ENPC, EDF R&D, Institut Polytechnique de Paris"
+preferred-citation:
+  type: article
+  title: "PyTorchFire: A GPU-accelerated wildfire simulator with Differentiable Cellular Automata"
+  doi: 10.1016/j.envsoft.2025.106401
+  url: "https://doi.org/10.1016/j.envsoft.2025.106401"
+  journal: "Environmental Modelling & Software"
+  volume: 188
+  start: 106401
+  issn: "1364-8152"
+  year: 2025
+  month: 4
+  authors:
+    - family-names: Xia
+      given-names: Zeyu
+      orcid: "https://orcid.org/0000-0003-0234-5857"
+      affiliation: University of Virginia
+    - family-names: Cheng
+      given-names: Sibo
+      orcid: "https://orcid.org/0000-0002-8707-2589"
+      affiliation: "CEREA, ENPC, EDF R&D, Institut Polytechnique de Paris"
+
+references:
+  - type: data
+    title: "Data for: 'PyTorchFire: A GPU-Accelerated Wildfire Simulator with Differentiable Cellular Automata'"
+    doi: 10.17632/nx2wsksp9k.2
+    version: "2"
+    date-released: "2025-03-13"
+    year: 2025
+    month: 3
+    url: "https://doi.org/10.17632/nx2wsksp9k.2"
+    authors:
+      - family-names: Xia
+        given-names: Zeyu
+        orcid: "https://orcid.org/0000-0003-0234-5857"
+        affiliation: University of Virginia
+      - family-names: Cheng
+        given-names: Sibo
+        orcid: "https://orcid.org/0000-0002-8707-2589"
+        affiliation: "CEREA, ENPC, EDF R&D, Institut Polytechnique de Paris"

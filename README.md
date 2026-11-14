@@ -15,6 +15,31 @@
 
 Accurate and rapid prediction of wildfire trends is crucial for effective management and mitigation. However, the stochastic nature of fire propagation poses significant challenges in developing reliable simulators. In this paper, we introduce PyTorchFire, an open-access, PyTorch-based software that leverages GPU acceleration. With our redesigned differentiable wildfire Cellular Automata (CA) model, we achieve millisecond-level computational efficiency, significantly outperforming traditional CPU-based wildfire simulators on real-world-scale fires at high resolution. Real-time parameter calibration is made possible through gradient descent on our model, aligning simulations closely with observed wildfire behavior both temporally and spatially, thereby enhancing the realism of the simulations. Our PyTorchFire simulator, combined with real-world environmental data, demonstrates superior generalizability compared to supervised learning surrogate models. Its ability to predict and calibrate wildfire behavior in real-time ensures accuracy, stability, and efficiency. PyTorchFire has the potential to revolutionize wildfire simulation, serving as a powerful tool for wildfire prediction and management.
 
+---
+
+## 🚀 New Companion Tool: FireDataForge
+
+[![Paper DOI](https://img.shields.io/badge/Paper_DOI-10.1109%2FIRI69576.2026.00103-blue.svg)](https://doi.org/10.1109/IRI69576.2026.00103)
+[![Green OA](https://img.shields.io/badge/Green_OA-arXiv%3A2606.21198-b31b1b.svg)](https://arxiv.org/abs/2606.21198)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-FireDataForge-181717?logo=github)](https://github.com/xiazeyu/FireDataForge)
+
+Tired of manually downloading and aligning wildfire data? We are excited to introduce **[FireDataForge](https://github.com/xiazeyu/FireDataForge)**, a unified data pipeline that perfectly complements PyTorchFire. 
+
+FireDataForge solves the preprocessing bottleneck in wildfire research. Simply provide an **MTBS Event ID**, and it will automatically retrieve, harmonize, and align **11 distinct data sources** (including fire behavior, weather, land cover, elevation, and satellite imagery) into analysis-ready NumPy arrays with embedded metadata. 
+
+It is the perfect upstream data provider for your PyTorchFire machine learning models and fire behavior simulations.
+
+**📖 Read the Paper:**
+> **FireDataForge: A Unified Framework for Multi-Source Wildfire Data Retrieval and Integration**  
+> *Zeyu Xia, Lexie Chen, Ye Liu, Huilin Huang*  
+> In *2026 IEEE International Conference on Information Reuse and Integration for Data Science (IEEE IRI 2026)*, pp. 528–531.  
+> Published version: [doi:10.1109/IRI69576.2026.00103](https://doi.org/10.1109/IRI69576.2026.00103)  
+> Open-access version (Green OA): [arXiv:2606.21198](https://arxiv.org/abs/2606.21198)
+
+👉 **[Get started with FireDataForge here!](https://github.com/xiazeyu/FireDataForge)**
+
+---
+
 ## Getting Started
 ### Notebook Examples
 
@@ -33,6 +58,12 @@ Install with dependencies for examples:
 
 ```shell
 pip install 'pytorchfire[examples]'
+```
+
+Install together with the [FireDataForge](https://github.com/xiazeyu/FireDataForge) data pipeline:
+
+```shell
+pip install 'pytorchfire[firedataforge]'
 ```
 
 ### Quick Start
@@ -63,6 +94,41 @@ trainer.train()
 trainer.evaluate()
 ```
 
+### Run on Real Fires from FireDataForge
+
+Point PyTorchFire straight at a [FireDataForge](https://github.com/xiazeyu/FireDataForge) event directory. The
+harmonized terrain, fuel, wind, and observed-ignition layers are mapped onto a
+`WildfireModel` for you — no manual preprocessing:
+
+```python
+import torch
+from pytorchfire import load_event
+
+# An event folder produced by FireDataForge (output/<MTBS event id>)
+event = load_event('output/CA3432611848120191010')
+
+model = event.build_model()   # WildfireModel seeded with the real fire
+model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
+for _ in range(100):
+    model.compute()
+
+# The observed final perimeter ships with the event — use it as a calibration target
+target = event.target()       # [H, W] bool tensor
+```
+
+> The reader only needs `numpy` and `torch`, so you can consume FireDataForge
+> outputs without installing the (heavyweight) `firedataforge` package itself.
+
+Runnable scripts:
+
+- Simulate a real fire: [examples/firedataforge_simulate.py](examples/firedataforge_simulate.py)
+- Calibrate parameters against the observed perimeter: [examples/firedataforge_calibration.py](examples/firedataforge_calibration.py)
+
+```shell
+python examples/firedataforge_simulate.py /path/to/output/CA3432611848120191010
+python examples/firedataforge_calibration.py /path/to/output/CA3432611848120191010 --device cuda:0
+```
+
 ## API Documents
 
 See at Our [Read the Docs](https://pytorchfire.readthedocs.io/).
@@ -88,6 +154,27 @@ See at Our [Dataset](https://doi.org/10.17632/nx2wsksp9k.1).
  url = {https://www.sciencedirect.com/science/article/pii/S1364815225000854},
  volume = {188},
  year = {2025}
+}
+```
+
+If you use the FireDataForge integration ([`pytorchfire.firedataforge`](pytorchfire/firedataforge.py)), please also cite FireDataForge ([doi:10.1109/IRI69576.2026.00103](https://doi.org/10.1109/IRI69576.2026.00103); open-access version (Green OA): [arXiv:2606.21198](https://arxiv.org/abs/2606.21198)):
+
+```bibtex
+@inproceedings{xia2026firedataforge,
+    address = {Seattle, WA, USA},
+    archiveprefix = {arXiv},
+    author = {Zeyu Xia and Lexie Chen and Ye Liu and Huilin Huang},
+    booktitle = {2026 IEEE International Conference on Information Reuse and Integration for Data Science (IEEE IRI 2026)},
+    doi = {10.1109/IRI69576.2026.00103},
+    eprint = {2606.21198},
+    keywords = {Wildfire research, Geospatial data fusion, Fire behavior simulation, Data reuse, Information retrieval},
+    language = {English},
+    month = jul,
+    pages = {528--531},
+    primaryclass = {cs.CE},
+    publisher = {IEEE},
+    title = {FireDataForge: A Unified Framework for Multi-Source Wildfire Data Retrieval and Integration},
+    year = {2026}
 }
 ```
 
