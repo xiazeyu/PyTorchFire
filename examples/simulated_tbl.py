@@ -159,6 +159,7 @@ class Fig6Trainer(BaseTrainer):
                     writer.add_scalar('EpochParams/a', self.model.a.item(), global_step)
                     writer.add_scalar('EpochParams/c_1', self.model.c_1.item(), global_step)
                     writer.add_scalar('EpochParams/c_2', self.model.c_2.item(), global_step)
+                    writer.add_scalar('EpochParams/c_3', self.model.c_3.item(), global_step)
                     writer.add_scalar('EpochParams/p_h', self.model.p_h.item(), global_step)
 
                 writer.add_scalar('Metrics/Jaccard', np.mean(running_jaccard), epochs)
@@ -168,6 +169,7 @@ class Fig6Trainer(BaseTrainer):
                 writer.add_scalar('Params/a', self.model.a.item(), epochs)
                 writer.add_scalar('Params/c_1', self.model.c_1.item(), epochs)
                 writer.add_scalar('Params/c_2', self.model.c_2.item(), epochs)
+                writer.add_scalar('Params/c_3', self.model.c_3.item(), epochs)
                 writer.add_scalar('Params/p_h', self.model.p_h.item(), epochs)
 
                 os.makedirs('out', exist_ok=True)
@@ -177,6 +179,7 @@ class Fig6Trainer(BaseTrainer):
                     epoch_ds.attrs['a'] = self.model.a.item()
                     epoch_ds.attrs['c_1'] = self.model.c_1.item()
                     epoch_ds.attrs['c_2'] = self.model.c_2.item()
+                    epoch_ds.attrs['c_3'] = self.model.c_3.item()
                     epoch_ds.attrs['p_h'] = self.model.p_h.item()
                     epoch_ds.attrs['p_continue'] = self.model.p_continue.item()
                     epoch_ds.attrs['loss'] = np.mean(running_loss)
@@ -227,6 +230,7 @@ class Fig6Trainer(BaseTrainer):
             f_out.attrs['a'] = self.model.a.item()
             f_out.attrs['c_1'] = self.model.c_1.item()
             f_out.attrs['c_2'] = self.model.c_2.item()
+            f_out.attrs['c_3'] = self.model.c_3.item()
             f_out.attrs['p_h'] = self.model.p_h.item()
             f_out.attrs['p_continue'] = self.model.p_continue.item()
             f_out.attrs['jaccard'] = np.mean(running_jaccard)
@@ -247,6 +251,7 @@ class Fig6Trainer(BaseTrainer):
             self.model.a.data = torch.tensor(f_in[best_epoch].attrs['a'])
             self.model.c_1.data = torch.tensor(f_in[best_epoch].attrs['c_1'])
             self.model.c_2.data = torch.tensor(f_in[best_epoch].attrs['c_2'])
+            self.model.c_3.data = torch.tensor(f_in[best_epoch].attrs.get('c_3', 0.0))
             self.model.p_h.data = torch.tensor(f_in[best_epoch].attrs['p_h'])
             self.model.p_continue.data = torch.tensor(f_in[best_epoch].attrs['p_continue'])
 
@@ -322,6 +327,7 @@ if __name__ == "__main__":
                 'p_continue': torch.tensor(f_in_ds.attrs['p_continue']),
                 'c_1': torch.tensor(f_in_ds.attrs['c_1']),
                 'c_2': torch.tensor(f_in_ds.attrs['c_2']),
+                'c_3': torch.tensor(f_in_ds.attrs.get('c_3', 0.0)),
             }
         else:
             params = {
@@ -330,6 +336,7 @@ if __name__ == "__main__":
                 'p_continue': torch.tensor(f_in_ds.attrs['p_continue']),
                 'c_1': torch.tensor(.0),
                 'c_2': torch.tensor(.0),
+                'c_3': torch.tensor(.0),
             }
 
         trainer = Fig6Trainer(model=WildfireModel({

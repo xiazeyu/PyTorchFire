@@ -261,6 +261,7 @@ class BaseTrainer:
             self.model.a.clamp_(min=0.0, max=1.0)
             self.model.c_1.clamp_(min=0.0, max=1.0)
             self.model.c_2.clamp_(min=0.0, max=1.0)
+            self.model.c_3.clamp_(min=-0.5, max=0.5)
             self.model.p_h.clamp_(min=0.2, max=1.0)
 
     def train(self):
