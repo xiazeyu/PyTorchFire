@@ -125,6 +125,7 @@ class Fig6Trainer(BaseTrainer):
                     writer.add_scalar('EpochParams/a', self.model.a.item(), global_step)
                     writer.add_scalar('EpochParams/c_1', self.model.c_1.item(), global_step)
                     writer.add_scalar('EpochParams/c_2', self.model.c_2.item(), global_step)
+                    writer.add_scalar('EpochParams/c_3', self.model.c_3.item(), global_step)
                     writer.add_scalar('EpochParams/p_h', self.model.p_h.item(), global_step)
 
                 writer.add_scalar('Metrics/Jaccard', np.mean(running_jaccard), epochs)
@@ -134,6 +135,7 @@ class Fig6Trainer(BaseTrainer):
                 writer.add_scalar('Params/a', self.model.a.item(), epochs)
                 writer.add_scalar('Params/c_1', self.model.c_1.item(), epochs)
                 writer.add_scalar('Params/c_2', self.model.c_2.item(), epochs)
+                writer.add_scalar('Params/c_3', self.model.c_3.item(), epochs)
                 writer.add_scalar('Params/p_h', self.model.p_h.item(), epochs)
 
                 os.makedirs('out', exist_ok=True)
@@ -143,6 +145,7 @@ class Fig6Trainer(BaseTrainer):
                     epoch_ds.attrs['a'] = self.model.a.item()
                     epoch_ds.attrs['c_1'] = self.model.c_1.item()
                     epoch_ds.attrs['c_2'] = self.model.c_2.item()
+                    epoch_ds.attrs['c_3'] = self.model.c_3.item()
                     epoch_ds.attrs['p_h'] = self.model.p_h.item()
                     epoch_ds.attrs['p_continue'] = self.model.p_continue.item()
                     epoch_ds.attrs['loss'] = np.mean(running_loss)
@@ -170,6 +173,7 @@ class Fig6Trainer(BaseTrainer):
             self.model.a.data = torch.tensor(ds.attrs['a'])
             self.model.c_1.data = torch.tensor(ds.attrs['c_1'])
             self.model.c_2.data = torch.tensor(ds.attrs['c_2'])
+            self.model.c_3.data = torch.tensor(ds.attrs.get('c_3', 0.0))
             self.model.p_h.data = torch.tensor(ds.attrs['p_h'])
             self.model.p_continue.data = torch.tensor(ds.attrs['p_continue'])
         wind_step_interval = ds.attrs['wind_step_interval']
@@ -218,6 +222,7 @@ class Fig6Trainer(BaseTrainer):
             f_out.attrs['a'] = self.model.a.item()
             f_out.attrs['c_1'] = self.model.c_1.item()
             f_out.attrs['c_2'] = self.model.c_2.item()
+            f_out.attrs['c_3'] = self.model.c_3.item()
             f_out.attrs['p_h'] = self.model.p_h.item()
             f_out.attrs['p_continue'] = self.model.p_continue.item()
             f_out.attrs['jaccard'] = np.mean(running_jaccard)
@@ -237,6 +242,7 @@ if __name__ == "__main__":
     parser.add_argument('--p_h', type=float, required=False, default=0.8)
     parser.add_argument('--c_1', type=float, required=False, default=0.0)
     parser.add_argument('--c_2', type=float, required=False, default=0.0)
+    parser.add_argument('--c_3', type=float, required=False, default=0.0)
     parser.add_argument('--seed', type=int, required=False, default=None)
     parser.add_argument('--max_epochs', type=int, required=False, default=10)
     parser.add_argument('--device', type=str, required=False, default='cuda:0')
@@ -263,6 +269,7 @@ if __name__ == "__main__":
             'p_continue': torch.tensor(f_in_ds.attrs['p_continue']),
             'c_1': torch.tensor(args.c_1),
             'c_2': torch.tensor(args.c_2),
+            'c_3': torch.tensor(args.c_3),
         }, keep_acc_mask=True), device=torch.device(args.device), run_name=args.run_name)
         trainer.max_epochs = args.max_epochs
         trainer.steps_update_interval = args.steps_update_interval
